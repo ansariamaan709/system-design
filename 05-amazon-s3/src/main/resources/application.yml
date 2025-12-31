@@ -1,0 +1,108 @@
+server:
+  port: 9000
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: s3-clone
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/s3db
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+      max-lifetime: 1200000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+    open-in-view: false
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+
+  servlet:
+    multipart:
+      max-file-size: 5GB
+      max-request-size: 5GB
+      file-size-threshold: 10MB
+
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=10000,expireAfterWrite=300s
+
+# S3 Storage Configuration
+storage:
+  root-path: ${STORAGE_PATH:./data/objects}
+  temp-path: ${TEMP_PATH:./data/temp}
+  chunk-size-bytes: 5242880  # 5MB
+  max-object-size-bytes: 5497558138880  # 5TB
+
+s3:
+  region: us-east-1
+  max-buckets-per-account: 100
+  max-keys-per-request: 1000
+  presigned-url-expiry-seconds: 3600
+  multipart:
+    min-part-size-bytes: 5242880     # 5MB
+    max-part-size-bytes: 5368709120  # 5GB
+    max-parts: 10000
+    upload-expiry-days: 7
+
+# Security
+security:
+  enabled: true
+  signature-version: AWS4-HMAC-SHA256
+
+# Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+# Logging
+logging:
+  level:
+    root: INFO
+    com.amazons3: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
