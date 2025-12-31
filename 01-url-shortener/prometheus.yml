@@ -1,0 +1,40 @@
+# Prometheus Configuration for URL Shortener
+# Place this file in your Prometheus directory
+
+global:
+  scrape_interval: 15s      # How often to scrape targets
+  evaluation_interval: 15s  # How often to evaluate rules
+  external_labels:
+    monitor: 'url-shortener-monitor'
+    environment: 'local'
+
+# Scrape configurations
+scrape_configs:
+  # Monitor Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          instance: 'prometheus-server'
+
+  # Monitor URL Shortener Spring Boot Application
+  - job_name: 'url-shortener'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s  # Scrape more frequently for real-time monitoring
+    static_configs:
+      - targets: ['localhost:8080']
+        labels:
+          application: 'url-shortener'
+          environment: 'local'
+          team: 'backend'
+
+# Alerting configuration (optional)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+          # - 'localhost:9093'  # Uncomment if you install Alertmanager
+
+# Load rules (optional - create alerts.yml separately)
+rule_files:
+  # - "alerts.yml"
