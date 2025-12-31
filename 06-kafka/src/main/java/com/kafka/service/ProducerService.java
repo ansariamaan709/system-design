@@ -1,6 +1,5 @@
 package com.kafka.service;
 
-import com.kafka.entity.Partition;
 import com.kafka.storage.Log;
 import com.kafka.storage.Record;
 import com.kafka.storage.RecordBatch;
@@ -10,7 +9,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
