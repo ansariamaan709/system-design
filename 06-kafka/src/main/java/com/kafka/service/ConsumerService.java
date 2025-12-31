@@ -378,7 +378,7 @@ public class ConsumerService {
         if (fetchResult.getRecords() == null || fetchResult.getRecords().isEmpty()) {
             return Collections.emptyList();
         }
-        
+
         List<Record> records = fetchResult.getRecords();
         RecordBatch batch = RecordBatch.builder()
                 .baseOffset(records.get(0).getOffset())
@@ -386,7 +386,7 @@ public class ConsumerService {
                 .maxTimestamp(records.stream().mapToLong(Record::getTimestamp).max().orElse(0L))
                 .records(records)
                 .build();
-        
+
         return List.of(batch);
     }
 

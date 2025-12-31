@@ -227,8 +227,7 @@ public class LogManager {
                 10485760,
                 defaultRetentionMs,
                 defaultRetentionBytes,
-                false
-        );
+                false);
         Log newLog = new Log(topicPartition, logPath, config);
         log.debug("Created log for {}-{} at {}", topic, partition, logPath);
 
@@ -268,8 +267,7 @@ public class LogManager {
                         10485760,
                         defaultRetentionMs,
                         defaultRetentionBytes,
-                        false
-                );
+                        false);
                 Log recoveredLog = new Log(
                         topicPartition,
                         topicDir.toPath(),

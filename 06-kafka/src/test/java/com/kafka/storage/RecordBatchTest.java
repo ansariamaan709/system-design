@@ -54,8 +54,7 @@ class RecordBatchTest {
         List<Record> records = List.of(
                 Record.builder().offset(0).timestamp(ts1).value("v1".getBytes()).build(),
                 Record.builder().offset(1).timestamp(ts2).value("v2".getBytes()).build(),
-                Record.builder().offset(2).timestamp(ts3).value("v3".getBytes()).build()
-        );
+                Record.builder().offset(2).timestamp(ts3).value("v3".getBytes()).build());
 
         RecordBatch batch = RecordBatch.builder()
                 .firstTimestamp(ts1)

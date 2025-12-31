@@ -390,7 +390,8 @@ public class Log implements Closeable {
 
             if (targetOffset < logStartOffset.get()) {
                 throw new IllegalArgumentException(
-                        "Cannot truncate to offset " + targetOffset + " which is before log start " + logStartOffset.get());
+                        "Cannot truncate to offset " + targetOffset + " which is before log start "
+                                + logStartOffset.get());
             }
 
             // Find and remove segments that are entirely after targetOffset

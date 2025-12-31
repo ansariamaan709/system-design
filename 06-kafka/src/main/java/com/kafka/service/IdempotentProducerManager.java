@@ -247,7 +247,8 @@ public class IdempotentProducerManager {
         // Remove from cache
         producerStateCache.entrySet().removeIf(entry -> {
             ProducerId producer = producerIdRepository.findByProducerId(entry.getKey()).orElse(null);
-            return producer != null && producer.getLastUpdateTime() != null && producer.getLastUpdateTime().isBefore(threshold);
+            return producer != null && producer.getLastUpdateTime() != null
+                    && producer.getLastUpdateTime().isBefore(threshold);
         });
 
         // Remove from database
