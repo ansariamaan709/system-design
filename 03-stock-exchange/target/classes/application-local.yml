@@ -1,0 +1,70 @@
+server:
+  port: 8080
+
+spring:
+  profiles:
+    active: local
+
+  # Local Database
+  datasource:
+    url: jdbc:postgresql://localhost:5432/stockexchange
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+
+  # JPA - Create tables automatically in local
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # Local Redis
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+
+  # Local Kafka (optional - disable if not running)
+  kafka:
+    bootstrap-servers: localhost:9092
+    # Disable Kafka auto-configuration if not available
+    # listener:
+    #   auto-startup: false
+
+  # Initialize schema
+  sql:
+    init:
+      mode: always
+      platform: postgresql
+
+# Logging - More verbose for development
+logging:
+  level:
+    root: INFO
+    com.stockexchange: DEBUG
+    com.stockexchange.engine: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+# Enable all actuator endpoints locally
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+
+# Swagger UI always enabled
+springdoc:
+  swagger-ui:
+    enabled: true
