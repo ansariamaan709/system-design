@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database for Kafka metadata
+  postgres:
+    image: postgres:15-alpine
+    container_name: kafka-postgres
+    environment:
+      POSTGRES_DB: kafka
+      POSTGRES_USER: kafka
+      POSTGRES_PASSWORD: kafka123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./src/main/resources/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kafka"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kafka-network
+
+  # Redis for caching and coordination
+  redis:
+    image: redis:7-alpine
+    container_name: kafka-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kafka-network
+
+  # Kafka clone application
+  kafka-broker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kafka-broker
+    ports:
+      - "8080:8080"       # REST API
+      - "9092:9092"       # Kafka protocol (future)
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/kafka
+      SPRING_DATASOURCE_USERNAME: kafka
+      SPRING_DATASOURCE_PASSWORD: kafka123
+      SPRING_DATA_REDIS_HOST: redis
+      KAFKA_BROKER_ID: 1
+      KAFKA_LOG_DIR: /var/kafka-logs
+    volumes:
+      - kafka_logs:/var/kafka-logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - kafka-network
+
+  # Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: kafka-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    networks:
+      - kafka-network
+
+  # Grafana for dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: kafka-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+      GF_USERS_ALLOW_SIGN_UP: false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    networks:
+      - kafka-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  kafka_logs:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  kafka-network:
+    driver: bridge

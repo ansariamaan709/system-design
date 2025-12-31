@@ -1,0 +1,149 @@
+server:
+  port: 9092
+
+spring:
+  application:
+    name: kafka-clone
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:kafkadb}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 100
+        order_inserts: true
+        order_updates: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=10000,expireAfterWrite=300s
+
+# Kafka Broker Configuration
+kafka:
+  broker:
+    id: ${BROKER_ID:1}
+    host: ${BROKER_HOST:localhost}
+    port: ${BROKER_PORT:9092}
+    rack: ${BROKER_RACK:default}
+  
+  # Log (Storage) Configuration
+  log:
+    dirs: ${LOG_DIRS:./data/kafka-logs}
+    segment:
+      bytes: 1073741824  # 1GB segment size
+      ms: 604800000      # 7 days roll
+    retention:
+      bytes: -1          # No size limit
+      ms: 604800000      # 7 days retention
+      check:
+        interval-ms: 300000  # 5 minutes
+    cleaner:
+      enable: true
+      threads: 1
+      dedupe-buffer-size: 134217728  # 128MB
+    index:
+      size-max-bytes: 10485760  # 10MB
+      interval-bytes: 4096      # Index every 4KB
+    flush:
+      interval-messages: 10000
+      interval-ms: 1000
+  
+  # Replication Configuration
+  replication:
+    factor:
+      default: 3
+    min-insync-replicas: 2
+    fetch:
+      max-bytes: 1048576  # 1MB
+      wait-max-ms: 500
+  
+  # Producer Configuration
+  producer:
+    acks: all
+    retries: 3
+    retry-backoff-ms: 100
+    batch:
+      size: 16384         # 16KB
+      linger-ms: 5
+    buffer-memory: 33554432  # 32MB
+    compression: lz4
+    max-block-ms: 60000
+    request-timeout-ms: 30000
+    enable-idempotence: true
+  
+  # Consumer Configuration
+  consumer:
+    group:
+      min-session-timeout-ms: 6000
+      max-session-timeout-ms: 1800000
+      initial-rebalance-delay-ms: 3000
+    fetch:
+      min-bytes: 1
+      max-bytes: 52428800  # 50MB
+      max-wait-ms: 500
+    max-poll-records: 500
+    auto-offset-reset: latest
+    enable-auto-commit: true
+    auto-commit-interval-ms: 5000
+  
+  # Network Configuration
+  network:
+    threads: 3
+    io:
+      threads: 8
+    socket:
+      send-buffer-bytes: 102400
+      receive-buffer-bytes: 102400
+      request-max-bytes: 104857600  # 100MB
+    connections:
+      max-idle-ms: 600000
+    max-connections-per-ip: 100
+  
+  # Coordinator Configuration
+  coordinator:
+    group:
+      offset-retention-ms: 604800000  # 7 days
+    transaction:
+      timeout-ms: 60000
+      state-log-replication-factor: 3
+  
+  # Controller Configuration
+  controller:
+    socket-timeout-ms: 30000
+    message-queue-size: 10
+
+# Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      broker: ${kafka.broker.id}
+
+# Logging
+logging:
+  level:
+    com.kafka: INFO
+    org.springframework: WARN
+    io.netty: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{correlationId}] %-5level %logger{36} - %msg%n"

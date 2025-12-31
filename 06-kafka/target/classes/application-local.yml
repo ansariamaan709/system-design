@@ -1,0 +1,37 @@
+server:
+  port: 9092
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/kafkadb
+    username: postgres
+    password: postgres
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+
+kafka:
+  broker:
+    id: 1
+    host: localhost
+    port: 9092
+  log:
+    dirs: ./data/kafka-logs
+    segment:
+      bytes: 104857600  # 100MB for local testing
+    retention:
+      ms: 86400000      # 1 day for local testing
+
+logging:
+  level:
+    com.kafka: DEBUG
+    org.springframework.web: DEBUG
