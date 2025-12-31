@@ -1,0 +1,38 @@
+server:
+  port: 8080
+
+spring:
+  profiles:
+    active: local
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/uber_nearby
+    username: postgres
+    password: postgres
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  
+  kafka:
+    bootstrap-servers: localhost:9092
+
+# Local development settings
+uber:
+  location:
+    update-interval-ms: 4000
+    stale-threshold-ms: 30000
+    default-search-radius-meters: 5000
+    h3-resolution: 9
+
+logging:
+  level:
+    root: INFO
+    com.uber: DEBUG
+    org.springframework.data.redis: DEBUG
