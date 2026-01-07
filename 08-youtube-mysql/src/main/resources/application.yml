@@ -1,0 +1,153 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: youtube-mysql
+  
+  # Primary datasource (simulating VTGate connection)
+  datasource:
+    url: jdbc:mysql://localhost:3306/youtube?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: youtube
+    password: youtube_password
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    
+    hikari:
+      pool-name: YouTubeHikariPool
+      maximum-pool-size: 50
+      minimum-idle: 10
+      idle-timeout: 300000
+      connection-timeout: 5000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+      
+      # MySQL performance optimizations
+      data-source-properties:
+        cachePrepStmts: true
+        prepStmtCacheSize: 500
+        prepStmtCacheSqlLimit: 2048
+        useServerPrepStmts: true
+        useLocalSessionState: true
+        rewriteBatchedStatements: true
+        cacheResultSetMetadata: true
+        cacheServerConfiguration: true
+        elideSetAutoCommits: true
+        maintainTimeStats: false
+  
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 100
+          fetch_size: 100
+        order_inserts: true
+        order_updates: true
+        batch_versioned_data: true
+        generate_statistics: false
+  
+  # Redis Configuration
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 50
+          max-idle: 20
+          min-idle: 5
+          max-wait: 1000ms
+  
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        linger.ms: 10
+        batch.size: 16384
+        compression.type: lz4
+    consumer:
+      group-id: youtube-mysql-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      properties:
+        spring.json.trusted.packages: com.youtube.event
+        max.poll.records: 500
+  
+  # Cache Configuration
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=10000,expireAfterWrite=300s
+
+# Application Configuration
+youtube:
+  # Snowflake ID Generator
+  id-generator:
+    datacenter-id: 1
+    worker-id: 1
+  
+  # Sharding Configuration (simulating Vitess)
+  sharding:
+    enabled: true
+    video-shards: 256
+    user-shards: 128
+    social-shards: 512
+  
+  # Cache TTLs
+  cache:
+    video-metadata-ttl: 300       # 5 minutes
+    video-stats-ttl: 30           # 30 seconds (frequently updated)
+    channel-info-ttl: 600         # 10 minutes
+    user-subscriptions-ttl: 300   # 5 minutes
+    trending-ttl: 60              # 1 minute
+  
+  # View Count Settings
+  view-count:
+    flush-interval: 300000        # 5 minutes
+    batch-size: 1000
+  
+  # Rate Limiting
+  rate-limit:
+    requests-per-second: 1000
+    burst-size: 2000
+
+# Metrics & Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: youtube-mysql
+    export:
+      prometheus:
+        enabled: true
+
+# Logging
+logging:
+  level:
+    root: INFO
+    com.youtube: DEBUG
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

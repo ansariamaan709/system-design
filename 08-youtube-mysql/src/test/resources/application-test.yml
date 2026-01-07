@@ -1,0 +1,38 @@
+spring:
+  # H2 in-memory database for tests
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=MySQL
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  
+  # Disable Redis for unit tests
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  
+  # Disable Kafka for unit tests
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+
+youtube:
+  id-generator:
+    datacenter-id: 1
+    worker-id: 1
+  
+  sharding:
+    enabled: false
+
+logging:
+  level:
+    com.youtube: DEBUG

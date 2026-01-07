@@ -1,0 +1,225 @@
+version: '3.8'
+
+services:
+  # MySQL (simulating Vitess VTTablet)
+  mysql:
+    image: mysql:8.0
+    container_name: youtube-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: youtube
+      MYSQL_USER: youtube
+      MYSQL_PASSWORD: youtube_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./src/main/resources/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+      --max_connections=500
+      --innodb_buffer_pool_size=512M
+      --innodb_log_file_size=128M
+      --slow_query_log=1
+      --slow_query_log_file=/var/lib/mysql/slow.log
+      --long_query_time=1
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "youtube", "-pyoutube_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - youtube-network
+
+  # Redis (for caching and view count buffering)
+  redis:
+    image: redis:7-alpine
+    container_name: youtube-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - youtube-network
+
+  # Zookeeper (for Kafka)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: youtube-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+    networks:
+      - youtube-network
+
+  # Kafka (for event streaming)
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: youtube-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_NUM_PARTITIONS: 16
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    networks:
+      - youtube-network
+
+  # Kafka UI
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: youtube-kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8081:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: youtube-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - youtube-network
+
+  # Redis Commander (Redis UI)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: youtube-redis-commander
+    depends_on:
+      - redis
+    ports:
+      - "8082:8081"
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    networks:
+      - youtube-network
+
+  # phpMyAdmin (MySQL UI)
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: youtube-phpmyadmin
+    depends_on:
+      - mysql
+    ports:
+      - "8083:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: youtube
+      PMA_PASSWORD: youtube_password
+    networks:
+      - youtube-network
+
+  # Prometheus (metrics)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: youtube-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    networks:
+      - youtube-network
+
+  # Grafana (dashboards)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: youtube-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - youtube-network
+
+  # Elasticsearch (ELK stack)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    container_name: youtube-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - ./docker/elk/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
+    ports:
+      - "9200:9200"
+    networks:
+      - youtube-network
+
+  # Logstash (ELK stack)
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.13.0
+    container_name: youtube-logstash
+    depends_on:
+      - elasticsearch
+    volumes:
+      - ./docker/elk/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+    ports:
+      - "5044:5044"
+    networks:
+      - youtube-network
+
+  # Kibana (ELK stack)
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.13.0
+    container_name: youtube-kibana
+    depends_on:
+      - elasticsearch
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    volumes:
+      - ./docker/elk/kibana.yml:/usr/share/kibana/config/kibana.yml
+    ports:
+      - "5601:5601"
+    networks:
+      - youtube-network
+
+volumes:
+  mysql_data:
+  redis_data:
+  zookeeper_data:
+  kafka_data:
+  prometheus_data:
+  grafana_data:
+
+  elasticsearch_data:
+  logstash_data:
+  kibana_data:
+
+networks:
+  youtube-network:
+    driver: bridge
