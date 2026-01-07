@@ -28,10 +28,10 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class RideController {
-    
+
     private final MatchingService matchingService;
     private final RideRequestRepository rideRequestRepository;
-    
+
     /**
      * Create a new ride request.
      * This initiates the driver matching process.
@@ -40,14 +40,14 @@ public class RideController {
     public ResponseEntity<RideRequestResponse> requestRide(
             @Valid @RequestBody RideRequestDto request,
             @RequestHeader(value = "X-City-Id", defaultValue = "san_francisco") String cityId) {
-        
+
         log.info("New ride request from rider {} in city {}", request.getRiderId(), cityId);
-        
+
         RideRequestResponse response = matchingService.requestRide(request, cityId);
-        
+
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
-    
+
     /**
      * Get the current status of a ride request.
      */
@@ -58,11 +58,10 @@ public class RideController {
                         request.getRequestId(),
                         request.getStatus(),
                         request.getMatchedDriverId(),
-                        request.getMatchedAt() != null ? request.getMatchedAt().toEpochMilli() : null
-                )))
+                        request.getMatchedAt() != null ? request.getMatchedAt().toEpochMilli() : null)))
                 .orElse(ResponseEntity.notFound().build());
     }
-    
+
     /**
      * Cancel a ride request.
      */
@@ -70,24 +69,24 @@ public class RideController {
     public ResponseEntity<Void> cancelRide(
             @PathVariable UUID requestId,
             @RequestBody(required = false) CancelRequest cancelRequest) {
-        
+
         return rideRequestRepository.findById(requestId)
                 .map(request -> {
                     if (!request.isActive()) {
                         return ResponseEntity.badRequest().<Void>build();
                     }
-                    
+
                     String reason = cancelRequest != null ? cancelRequest.reason() : "User cancelled";
                     request.cancel(reason);
                     rideRequestRepository.save(request);
-                    
+
                     log.info("Ride {} cancelled: {}", requestId, reason);
-                    
+
                     return ResponseEntity.ok().<Void>build();
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
-    
+
     /**
      * Response record for ride status.
      */
@@ -95,10 +94,12 @@ public class RideController {
             UUID requestId,
             RideStatus status,
             UUID matchedDriverId,
-            Long matchedAt) {}
-    
+            Long matchedAt) {
+    }
+
     /**
      * Request record for cancellation.
      */
-    public record CancelRequest(String reason) {}
+    public record CancelRequest(String reason) {
+    }
 }

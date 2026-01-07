@@ -14,10 +14,10 @@ import java.util.*;
  * It partitions the world into hexagonal cells at various resolutions.
  * 
  * Resolution levels:
- * - 0:  avg edge ~1107km
- * - 4:  avg edge ~22.6km
- * - 7:  avg edge ~1.22km
- * - 9:  avg edge ~174m  (commonly used for ride-hailing)
+ * - 0: avg edge ~1107km
+ * - 4: avg edge ~22.6km
+ * - 7: avg edge ~1.22km
+ * - 9: avg edge ~174m (commonly used for ride-hailing)
  * - 10: avg edge ~66m
  * - 11: avg edge ~25m
  * - 12: avg edge ~9.4m
@@ -31,18 +31,18 @@ import java.util.*;
  */
 @Slf4j
 public class H3Index {
-    
+
     private static final H3Core h3;
-    
+
     // Default resolution for ride-hailing (174m edge)
     public static final int DEFAULT_RESOLUTION = 9;
-    
+
     // Resolution for coarse city-level queries
     public static final int CITY_RESOLUTION = 4;
-    
+
     // Resolution for precise pickup points
     public static final int PRECISE_RESOLUTION = 11;
-    
+
     static {
         try {
             h3 = H3Core.newInstance();
@@ -50,7 +50,7 @@ public class H3Index {
             throw new RuntimeException("Failed to initialize H3 library", e);
         }
     }
-    
+
     /**
      * Convert latitude/longitude to H3 index at default resolution.
      *
@@ -61,7 +61,7 @@ public class H3Index {
     public static long latLngToCell(double latitude, double longitude) {
         return latLngToCell(latitude, longitude, DEFAULT_RESOLUTION);
     }
-    
+
     /**
      * Convert latitude/longitude to H3 index at specified resolution.
      *
@@ -75,7 +75,7 @@ public class H3Index {
         validateResolution(resolution);
         return h3.latLngToCell(latitude, longitude, resolution);
     }
-    
+
     /**
      * Convert H3 index to latitude/longitude (center of hexagon).
      *
@@ -84,9 +84,9 @@ public class H3Index {
      */
     public static double[] cellToLatLng(long h3Index) {
         LatLng latLng = h3.cellToLatLng(h3Index);
-        return new double[]{latLng.lat, latLng.lng};
+        return new double[] { latLng.lat, latLng.lng };
     }
-    
+
     /**
      * Convert H3 index to string representation.
      *
@@ -96,7 +96,7 @@ public class H3Index {
     public static String h3ToString(long h3Index) {
         return h3.h3ToString(h3Index);
     }
-    
+
     /**
      * Convert string H3 index to long.
      *
@@ -106,7 +106,7 @@ public class H3Index {
     public static long stringToH3(String h3String) {
         return h3.stringToH3(h3String);
     }
-    
+
     /**
      * Get the resolution of an H3 index.
      *
@@ -116,7 +116,7 @@ public class H3Index {
     public static int getResolution(long h3Index) {
         return h3.getResolution(h3Index);
     }
-    
+
     /**
      * Get all neighboring hexagons (k-ring) around a center cell.
      * k=0 returns just the center cell
@@ -130,7 +130,7 @@ public class H3Index {
     public static List<Long> gridDisk(long h3Index, int k) {
         return h3.gridDisk(h3Index, k);
     }
-    
+
     /**
      * Get only the hexagons in the outer ring (hollow ring).
      *
@@ -151,7 +151,7 @@ public class H3Index {
             return new ArrayList<>(ring);
         }
     }
-    
+
     /**
      * Get immediate neighbors of a hexagon (6 neighbors).
      *
@@ -164,7 +164,7 @@ public class H3Index {
         disk.remove(h3Index);
         return disk;
     }
-    
+
     /**
      * Calculate the great-circle distance between two H3 cell centers.
      *
@@ -186,11 +186,11 @@ public class H3Index {
             return HaversineDistance.calculateMeters(ll1[0], ll1[1], ll2[0], ll2[1]);
         }
     }
-    
+
     /**
      * Get the parent cell at a coarser resolution.
      *
-     * @param h3Index       H3 index
+     * @param h3Index          H3 index
      * @param parentResolution Target resolution (must be < current resolution)
      * @return Parent H3 index
      */
@@ -198,7 +198,7 @@ public class H3Index {
         validateResolution(parentResolution);
         return h3.cellToParent(h3Index, parentResolution);
     }
-    
+
     /**
      * Get all children cells at a finer resolution.
      *
@@ -210,7 +210,7 @@ public class H3Index {
         validateResolution(childResolution);
         return h3.cellToChildren(h3Index, childResolution);
     }
-    
+
     /**
      * Check if a cell is a pentagon (there are 12 pentagons at each resolution).
      *
@@ -220,7 +220,7 @@ public class H3Index {
     public static boolean isPentagon(long h3Index) {
         return h3.isPentagon(h3Index);
     }
-    
+
     /**
      * Get cells covering a radius from a point using expanding rings.
      * Returns cells progressively until the radius is covered.
@@ -231,25 +231,25 @@ public class H3Index {
      * @param resolution   H3 resolution
      * @return List of H3 indexes covering the radius
      */
-    public static List<Long> getCellsForRadius(double latitude, double longitude, 
-                                                double radiusMeters, int resolution) {
+    public static List<Long> getCellsForRadius(double latitude, double longitude,
+            double radiusMeters, int resolution) {
         long centerCell = latLngToCell(latitude, longitude, resolution);
         double edgeLength = getEdgeLengthMeters(resolution);
-        
+
         // Calculate number of rings needed
         // Each ring adds approximately 1.5 * edgeLength to the radius
         int rings = (int) Math.ceil(radiusMeters / (edgeLength * 1.5)) + 1;
-        
+
         return gridDisk(centerCell, rings);
     }
-    
+
     /**
      * Get cells for radius with default resolution.
      */
     public static List<Long> getCellsForRadius(double latitude, double longitude, double radiusMeters) {
         return getCellsForRadius(latitude, longitude, radiusMeters, DEFAULT_RESOLUTION);
     }
-    
+
     /**
      * Get the best resolution for a given radius.
      * Chooses resolution where cell size is appropriate for the search radius.
@@ -260,15 +260,21 @@ public class H3Index {
     public static int getResolutionForRadius(double radiusMeters) {
         // Target: cell edge should be roughly 1/3 to 1/4 of the search radius
         // This ensures good coverage without too many cells
-        if (radiusMeters >= 50000) return 4;   // 50km+
-        if (radiusMeters >= 10000) return 6;   // 10-50km
-        if (radiusMeters >= 5000) return 7;    // 5-10km
-        if (radiusMeters >= 2000) return 8;    // 2-5km
-        if (radiusMeters >= 500) return 9;     // 500m-2km (most common)
-        if (radiusMeters >= 100) return 10;    // 100-500m
-        return 11;                              // <100m
+        if (radiusMeters >= 50000)
+            return 4; // 50km+
+        if (radiusMeters >= 10000)
+            return 6; // 10-50km
+        if (radiusMeters >= 5000)
+            return 7; // 5-10km
+        if (radiusMeters >= 2000)
+            return 8; // 2-5km
+        if (radiusMeters >= 500)
+            return 9; // 500m-2km (most common)
+        if (radiusMeters >= 100)
+            return 10; // 100-500m
+        return 11; // <100m
     }
-    
+
     /**
      * Get approximate edge length in meters for a resolution.
      *
@@ -297,7 +303,7 @@ public class H3Index {
             default -> 174.375668; // Default to res 9
         };
     }
-    
+
     /**
      * Get approximate cell area in square meters for a resolution.
      *
@@ -326,7 +332,7 @@ public class H3Index {
             default -> 105332513.0; // Default to res 9
         };
     }
-    
+
     /**
      * Compact a set of H3 indexes, combining them into larger cells where possible.
      * Useful for reducing storage when covering large areas.
@@ -337,7 +343,7 @@ public class H3Index {
     public static List<Long> compact(Collection<Long> h3Indexes) {
         return h3.compactCells(h3Indexes);
     }
-    
+
     /**
      * Uncompact a set of H3 indexes to a target resolution.
      *
@@ -348,7 +354,7 @@ public class H3Index {
     public static List<Long> uncompact(Collection<Long> h3Indexes, int resolution) {
         return h3.uncompactCells(h3Indexes, resolution);
     }
-    
+
     /**
      * Get the polygon boundary of an H3 cell.
      *
@@ -358,10 +364,10 @@ public class H3Index {
     public static List<double[]> cellToBoundary(long h3Index) {
         List<LatLng> boundary = h3.cellToBoundary(h3Index);
         return boundary.stream()
-                .map(ll -> new double[]{ll.lat, ll.lng})
+                .map(ll -> new double[] { ll.lat, ll.lng })
                 .toList();
     }
-    
+
     private static void validateCoordinates(double latitude, double longitude) {
         if (latitude < -90 || latitude > 90) {
             throw new IllegalArgumentException("Latitude must be between -90 and 90");
@@ -370,7 +376,7 @@ public class H3Index {
             throw new IllegalArgumentException("Longitude must be between -180 and 180");
         }
     }
-    
+
     private static void validateResolution(int resolution) {
         if (resolution < 0 || resolution > 15) {
             throw new IllegalArgumentException("Resolution must be between 0 and 15");

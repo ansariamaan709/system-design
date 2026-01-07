@@ -10,11 +10,11 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class BatchLocationUpdateResponse {
-    
+
     private int processed;
     private int failed;
     private String message;
-    
+
     public static BatchLocationUpdateResponse success(int processed) {
         return BatchLocationUpdateResponse.builder()
                 .processed(processed)
@@ -22,7 +22,7 @@ public class BatchLocationUpdateResponse {
                 .message("All locations processed successfully")
                 .build();
     }
-    
+
     public static BatchLocationUpdateResponse partial(int processed, int failed) {
         return BatchLocationUpdateResponse.builder()
                 .processed(processed)

@@ -21,9 +21,9 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @Slf4j
 public class NearbyController {
-    
+
     private final NearbySearchService nearbySearchService;
-    
+
     /**
      * Find nearby available drivers within a radius.
      * Called by rider app to display drivers on map.
@@ -43,19 +43,19 @@ public class NearbyController {
             @RequestParam(required = false) Integer limit,
             @RequestParam(required = false) VehicleType vehicleType,
             @RequestHeader(value = "X-City-Id", defaultValue = "san_francisco") String cityId) {
-        
-        log.debug("Nearby search at ({}, {}) with radius {} in city {}", 
+
+        log.debug("Nearby search at ({}, {}) with radius {} in city {}",
                 lat, lng, radius, cityId);
-        
+
         NearbyDriversResponse response = nearbySearchService.findNearbyDrivers(
                 cityId, lat, lng, radius, limit, vehicleType);
-        
-        log.debug("Found {} nearby drivers in {}ms", 
+
+        log.debug("Found {} nearby drivers in {}ms",
                 response.getTotalFound(), response.getSearchTimeMs());
-        
+
         return ResponseEntity.ok(response);
     }
-    
+
     /**
      * Calculate ETA from a driver to a location.
      */
@@ -66,19 +66,19 @@ public class NearbyController {
             @RequestParam double toLng,
             @RequestParam double fromLat,
             @RequestParam double fromLng) {
-        
+
         double distance = HaversineDistance.calculateMeters(fromLat, fromLng, toLat, toLng);
         int etaSeconds = HaversineDistance.estimateEtaSeconds(fromLat, fromLng, toLat, toLng);
-        
+
         return ResponseEntity.ok(new EtaResponse(
                 driverId,
                 etaSeconds,
-                (int) distance
-        ));
+                (int) distance));
     }
-    
+
     /**
      * Simple ETA response record.
      */
-    public record EtaResponse(String driverId, int etaSeconds, int distanceMeters) {}
+    public record EtaResponse(String driverId, int etaSeconds, int distanceMeters) {
+    }
 }

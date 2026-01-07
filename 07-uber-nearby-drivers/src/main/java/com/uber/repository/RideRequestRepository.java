@@ -18,34 +18,37 @@ import java.util.UUID;
  */
 @Repository
 public interface RideRequestRepository extends JpaRepository<RideRequest, UUID> {
-    
+
     List<RideRequest> findByRiderId(UUID riderId);
-    
+
     List<RideRequest> findByMatchedDriverId(UUID driverId);
-    
+
     List<RideRequest> findByStatus(RideStatus status);
-    
+
     List<RideRequest> findByRiderIdAndStatus(UUID riderId, RideStatus status);
-    
+
     Optional<RideRequest> findByMatchedDriverIdAndStatus(UUID driverId, RideStatus status);
-    
+
     @Query("SELECT r FROM RideRequest r WHERE r.riderId = :riderId AND r.status IN :statuses ORDER BY r.createdAt DESC")
-    List<RideRequest> findActiveRidesForRider(@Param("riderId") UUID riderId, @Param("statuses") List<RideStatus> statuses);
-    
+    List<RideRequest> findActiveRidesForRider(@Param("riderId") UUID riderId,
+            @Param("statuses") List<RideStatus> statuses);
+
     @Query("SELECT r FROM RideRequest r WHERE r.matchedDriverId = :driverId AND r.status IN :statuses")
-    Optional<RideRequest> findActiveRideForDriver(@Param("driverId") UUID driverId, @Param("statuses") List<RideStatus> statuses);
-    
+    Optional<RideRequest> findActiveRideForDriver(@Param("driverId") UUID driverId,
+            @Param("statuses") List<RideStatus> statuses);
+
     @Modifying
     @Query("UPDATE RideRequest r SET r.status = :status WHERE r.requestId = :requestId")
     int updateStatus(@Param("requestId") UUID requestId, @Param("status") RideStatus status);
-    
+
     @Modifying
     @Query("UPDATE RideRequest r SET r.matchedDriverId = :driverId, r.matchedAt = :matchedAt, r.status = 'DRIVER_ASSIGNED' WHERE r.requestId = :requestId")
-    int assignDriver(@Param("requestId") UUID requestId, @Param("driverId") UUID driverId, @Param("matchedAt") Instant matchedAt);
-    
+    int assignDriver(@Param("requestId") UUID requestId, @Param("driverId") UUID driverId,
+            @Param("matchedAt") Instant matchedAt);
+
     @Query("SELECT COUNT(r) FROM RideRequest r WHERE r.status = :status AND r.createdAt > :since")
     long countByStatusSince(@Param("status") RideStatus status, @Param("since") Instant since);
-    
+
     // Find pending requests in a given H3 cell (for demand calculation)
     @Query("SELECT r FROM RideRequest r WHERE r.status = 'PENDING' AND r.pickupH3 = :h3Index")
     List<RideRequest> findPendingInH3Cell(@Param("h3Index") Long h3Index);

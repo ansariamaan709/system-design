@@ -19,7 +19,8 @@ $schemaPath = Join-Path $scriptPath "src\main\resources\schema.sql"
 if (Test-Path $schemaPath) {
     docker exec -i uber-postgres psql -U postgres -d uber_nearby -f /docker-entrypoint-initdb.d/01-schema.sql
     Write-Host "Schema applied successfully!" -ForegroundColor Green
-} else {
+}
+else {
     Write-Host "Schema file not found at: $schemaPath" -ForegroundColor Red
     exit 1
 }

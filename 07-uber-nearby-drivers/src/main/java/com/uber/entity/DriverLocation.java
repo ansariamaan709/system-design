@@ -18,17 +18,17 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DriverLocation {
-    
+
     @Id
     @Column(name = "driver_id")
     private UUID driverId;
-    
+
     @Column(nullable = false)
     private Double latitude;
-    
+
     @Column(nullable = false)
     private Double longitude;
-    
+
     /**
      * Geohash encoding of the location.
      * Used for Redis GEO operations and spatial indexing.
@@ -36,7 +36,7 @@ public class DriverLocation {
      */
     @Column(nullable = false, length = 12)
     private String geohash;
-    
+
     /**
      * H3 hexagonal grid index.
      * Uber's preferred spatial indexing system.
@@ -44,51 +44,51 @@ public class DriverLocation {
      */
     @Column(name = "h3_index", nullable = false)
     private Long h3Index;
-    
+
     /**
      * Direction the driver is heading (0-359 degrees).
      * 0 = North, 90 = East, 180 = South, 270 = West
      */
     private Short heading;
-    
+
     /**
      * Current speed in meters per second.
      */
     private Float speed;
-    
+
     /**
      * GPS accuracy in meters.
      * Lower is more accurate.
      */
     private Float accuracy;
-    
+
     /**
      * Current driver status.
      */
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private DriverStatus status = DriverStatus.AVAILABLE;
-    
+
     /**
      * Timestamp of the last location update.
      */
     @Column(name = "updated_at")
     @Builder.Default
     private Instant updatedAt = Instant.now();
-    
+
     @PrePersist
     @PreUpdate
     protected void onUpdate() {
         updatedAt = Instant.now();
     }
-    
+
     /**
      * Check if this location is stale (older than threshold).
      */
     public boolean isStale(long thresholdMillis) {
         return Instant.now().toEpochMilli() - updatedAt.toEpochMilli() > thresholdMillis;
     }
-    
+
     /**
      * Check if driver is available for rides.
      */

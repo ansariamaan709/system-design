@@ -30,16 +30,16 @@ import java.time.Duration;
  */
 @Configuration
 public class RedisConfig {
-    
+
     @Value("${spring.data.redis.host:localhost}")
     private String redisHost;
-    
+
     @Value("${spring.data.redis.port:6379}")
     private int redisPort;
-    
+
     @Value("${spring.data.redis.password:}")
     private String redisPassword;
-    
+
     @Bean
     public LettuceConnectionFactory redisConnectionFactory() {
         RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration();
@@ -48,7 +48,7 @@ public class RedisConfig {
         if (redisPassword != null && !redisPassword.isEmpty()) {
             redisConfig.setPassword(redisPassword);
         }
-        
+
         // Connection pool configuration for high throughput
         GenericObjectPoolConfig<?> poolConfig = new GenericObjectPoolConfig<>();
         poolConfig.setMaxTotal(50);
@@ -58,45 +58,45 @@ public class RedisConfig {
         poolConfig.setTestOnBorrow(true);
         poolConfig.setTestOnReturn(true);
         poolConfig.setTestWhileIdle(true);
-        
+
         // Socket options for fast failover
         SocketOptions socketOptions = SocketOptions.builder()
                 .connectTimeout(Duration.ofMillis(2000))
                 .keepAlive(true)
                 .build();
-        
+
         // Client options
         ClientOptions clientOptions = ClientOptions.builder()
                 .socketOptions(socketOptions)
                 .autoReconnect(true)
                 .build();
-        
+
         LettuceClientConfiguration clientConfig = LettucePoolingClientConfiguration.builder()
                 .poolConfig(poolConfig)
                 .clientOptions(clientOptions)
                 .commandTimeout(Duration.ofMillis(2000))
                 .build();
-        
+
         return new LettuceConnectionFactory(redisConfig, clientConfig);
     }
-    
+
     @Bean
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
-        
+
         // Use String serializer for keys
         template.setKeySerializer(new StringRedisSerializer());
         template.setHashKeySerializer(new StringRedisSerializer());
-        
+
         // Use JSON serializer for values
         template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
         template.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
-        
+
         template.afterPropertiesSet();
         return template;
     }
-    
+
     @Bean
     public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory connectionFactory) {
         return new StringRedisTemplate(connectionFactory);

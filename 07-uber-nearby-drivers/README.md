@@ -9,24 +9,28 @@ A production-grade implementation of Uber's driver location and matching system,
 ## 1. Problem Statement
 
 ### What We're Building
+
 A real-time geospatial system that:
+
 - Tracks millions of driver locations with sub-second updates
 - Finds nearby available drivers within milliseconds
 - Matches riders with optimal drivers at massive scale
 - Handles 1M+ requests per second with low latency
 
 ### Scale Requirements
-| Metric | Target |
-|--------|--------|
-| Active drivers | 5 million |
-| Location updates | 5M/sec (1 update/driver/sec) |
-| Ride requests | 1M/sec peak |
-| Search latency | < 50ms p99 |
-| Match latency | < 100ms p99 |
-| Location staleness | < 3 seconds |
-| Geographic coverage | Global |
+
+| Metric              | Target                       |
+| ------------------- | ---------------------------- |
+| Active drivers      | 5 million                    |
+| Location updates    | 5M/sec (1 update/driver/sec) |
+| Ride requests       | 1M/sec peak                  |
+| Search latency      | < 50ms p99                   |
+| Match latency       | < 100ms p99                  |
+| Location staleness  | < 3 seconds                  |
+| Geographic coverage | Global                       |
 
 ### Core Challenges
+
 1. **Write-heavy workload**: 5M location updates/sec
 2. **Read-heavy queries**: 1M spatial searches/sec
 3. **Real-time requirements**: Sub-second freshness
@@ -84,21 +88,22 @@ A real-time geospatial system that:
 
 ### Component Overview
 
-| Component | Responsibility | Technology |
-|-----------|---------------|------------|
-| API Gateway | Rate limiting, routing, auth | Spring Cloud Gateway |
-| Location Service | Ingest driver location updates | Spring Boot + Kafka |
-| Nearby Service | Find drivers within radius | Spring Boot + Redis |
-| Spatial Index | Geospatial queries | Redis GEO + H3 |
-| Event Bus | Async communication | Apache Kafka |
-| Hot Storage | Real-time driver data | Redis Cluster |
-| Cold Storage | Historical analytics | PostgreSQL + PostGIS |
+| Component        | Responsibility                 | Technology           |
+| ---------------- | ------------------------------ | -------------------- |
+| API Gateway      | Rate limiting, routing, auth   | Spring Cloud Gateway |
+| Location Service | Ingest driver location updates | Spring Boot + Kafka  |
+| Nearby Service   | Find drivers within radius     | Spring Boot + Redis  |
+| Spatial Index    | Geospatial queries             | Redis GEO + H3       |
+| Event Bus        | Async communication            | Apache Kafka         |
+| Hot Storage      | Real-time driver data          | Redis Cluster        |
+| Cold Storage     | Historical analytics           | PostgreSQL + PostGIS |
 
 ---
 
 ## 3. Data Model
 
 ### Driver Location (Hot Path)
+
 ```
 Redis Key: driver:location:{driver_id}
 Redis GEO: drivers:geo:{city_id}
@@ -130,7 +135,7 @@ Redis GEO: drivers:geo:{city_id}
    ├────┼────┼────┼────┤
    │ 9p │ 9n │ 9w │ 9y │
    ├────┼────┼────┼────┤     Geohash: "9q8yy" → (37.7749, -122.4194)
-   │ 9j │ 9m │ 9t │ 9v │     
+   │ 9j │ 9m │ 9t │ 9v │
    ├────┼────┼────┼────┤     Precision vs Coverage:
    │ 9h │ 9k │ 9s │ 9u │     - 4 chars: ±20km
    └────┴────┴────┴────┘     - 6 chars: ±610m
@@ -149,7 +154,7 @@ Redis GEO: drivers:geo:{city_id}
     \ ___ /   \___ /   \___ /   - No edge distortion
                                 - Efficient neighbors
    H3 Index: 0x8928308280fffff
-   
+
 3. QUADTREE (Alternative)
    ┌─────────┬─────────┐
    │    0    │    1    │      Each cell subdivides into 4
@@ -187,23 +192,23 @@ CREATE TABLE driver_location_history (
 ) PARTITION BY RANGE (recorded_at);
 
 -- Create partitions (daily)
-CREATE TABLE driver_location_history_2024_01 
+CREATE TABLE driver_location_history_2024_01
     PARTITION OF driver_location_history
     FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
 
 -- Spatial index for geographic queries
-CREATE INDEX idx_location_geo ON driver_location_history 
+CREATE INDEX idx_location_geo ON driver_location_history
     USING GIST (location);
 
 -- H3 index for hexagon-based queries
 CREATE INDEX idx_location_h3 ON driver_location_history (h3_index);
 
 -- Geohash prefix index for grid queries
-CREATE INDEX idx_location_geohash ON driver_location_history 
+CREATE INDEX idx_location_geohash ON driver_location_history
     USING btree (geohash varchar_pattern_ops);
 
 -- Composite index for common query patterns
-CREATE INDEX idx_driver_time ON driver_location_history 
+CREATE INDEX idx_driver_time ON driver_location_history
     (driver_id, recorded_at DESC);
 
 -- Drivers table
@@ -458,8 +463,8 @@ Inputs:
 - Rider priority score
 
 Scoring Function:
-  score(driver) = w1 × (1/distance) 
-                + w2 × driver_rating 
+  score(driver) = w1 × (1/distance)
+                + w2 × driver_rating
                 + w3 × acceptance_rate
                 + w4 × (1/eta)
                 - w5 × surge_multiplier
@@ -888,37 +893,37 @@ Total: 45ms (Target: <50ms ✓)
 
 ### 11.1 Geohash vs H3 vs S2
 
-| Aspect | Geohash | H3 | S2 |
-|--------|---------|----|----|
-| Cell Shape | Rectangle | Hexagon | Square |
-| Edge Distortion | High at poles | Minimal | Moderate |
-| Neighbor Finding | 8 neighbors | 6 neighbors | 8 neighbors |
-| Implementation | Simple | Moderate | Complex |
-| Redis Support | Native GEOADD | Custom | Custom |
-| Uber's Choice | No | **Yes** | No |
+| Aspect           | Geohash       | H3          | S2          |
+| ---------------- | ------------- | ----------- | ----------- |
+| Cell Shape       | Rectangle     | Hexagon     | Square      |
+| Edge Distortion  | High at poles | Minimal     | Moderate    |
+| Neighbor Finding | 8 neighbors   | 6 neighbors | 8 neighbors |
+| Implementation   | Simple        | Moderate    | Complex     |
+| Redis Support    | Native GEOADD | Custom      | Custom      |
+| Uber's Choice    | No            | **Yes**     | No          |
 
 **Decision**: Use Redis GEO (Geohash) for simplicity, with H3 overlay for advanced queries.
 
 ### 11.2 Redis vs Custom In-Memory Store
 
-| Aspect | Redis | Custom Store |
-|--------|-------|--------------|
-| Development Time | Low | High |
-| GEO Support | Built-in | Must implement |
-| Clustering | Built-in | Must implement |
-| Persistence | RDB/AOF | Must implement |
-| Latency | <1ms | <0.5ms |
-| Memory Efficiency | Good | Can be better |
+| Aspect            | Redis    | Custom Store   |
+| ----------------- | -------- | -------------- |
+| Development Time  | Low      | High           |
+| GEO Support       | Built-in | Must implement |
+| Clustering        | Built-in | Must implement |
+| Persistence       | RDB/AOF  | Must implement |
+| Latency           | <1ms     | <0.5ms         |
+| Memory Efficiency | Good     | Can be better  |
 
 **Decision**: Use Redis for faster development, acceptable performance.
 
 ### 11.3 Update Frequency Trade-offs
 
-| Frequency | Bandwidth | Battery | Accuracy | Server Load |
-|-----------|-----------|---------|----------|-------------|
-| 1 second | High | High drain | Excellent | 5M/sec |
-| 4 seconds | Medium | Moderate | Good | 1.25M/sec |
-| 10 seconds | Low | Low drain | Acceptable | 500K/sec |
+| Frequency  | Bandwidth | Battery    | Accuracy   | Server Load |
+| ---------- | --------- | ---------- | ---------- | ----------- |
+| 1 second   | High      | High drain | Excellent  | 5M/sec      |
+| 4 seconds  | Medium    | Moderate   | Good       | 1.25M/sec   |
+| 10 seconds | Low       | Low drain  | Acceptable | 500K/sec    |
 
 **Decision**: 4 seconds when moving, 30 seconds when stationary.
 
@@ -929,6 +934,7 @@ Total: 45ms (Target: <50ms ✓)
 ### Frequently Asked Questions
 
 **Q: How do you handle 5M location updates per second?**
+
 ```
 A: Multi-layer approach:
 1. Batch updates at client (send every 4s, not every GPS tick)
@@ -939,6 +945,7 @@ A: Multi-layer approach:
 ```
 
 **Q: Why not use a traditional database for location storage?**
+
 ```
 A: Write amplification problem:
 - PostgreSQL: Each update = WAL write + index update + table update
@@ -948,6 +955,7 @@ A: Write amplification problem:
 ```
 
 **Q: How do you ensure location freshness?**
+
 ```
 A: TTL-based expiration:
 1. Each location has 30-second TTL in Redis
@@ -957,6 +965,7 @@ A: TTL-based expiration:
 ```
 
 **Q: How would you optimize for dense urban areas?**
+
 ```
 A: Dynamic precision adjustment:
 1. Use higher H3 resolution in dense areas (res 10 vs res 9)
@@ -966,6 +975,7 @@ A: Dynamic precision adjustment:
 ```
 
 **Q: How do you handle cross-region trips?**
+
 ```
 A: Edge cases:
 1. Most trips are intra-city (99%+)
@@ -988,16 +998,16 @@ A: Edge cases:
 
 ## Tech Stack Summary
 
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| API Layer | Spring Boot 3.2 | REST + WebSocket endpoints |
-| Spatial Index | Redis GEO + H3 | Real-time location queries |
-| Hot Storage | Redis Cluster | Driver locations, status |
-| Cold Storage | PostgreSQL + PostGIS | Historical data, analytics |
-| Message Queue | Apache Kafka | Event streaming, decoupling |
-| Caching | Caffeine + Redis | Multi-level caching |
-| Monitoring | Prometheus + Grafana | Metrics and dashboards |
-| Tracing | Jaeger | Distributed tracing |
+| Component     | Technology           | Purpose                     |
+| ------------- | -------------------- | --------------------------- |
+| API Layer     | Spring Boot 3.2      | REST + WebSocket endpoints  |
+| Spatial Index | Redis GEO + H3       | Real-time location queries  |
+| Hot Storage   | Redis Cluster        | Driver locations, status    |
+| Cold Storage  | PostgreSQL + PostGIS | Historical data, analytics  |
+| Message Queue | Apache Kafka         | Event streaming, decoupling |
+| Caching       | Caffeine + Redis     | Multi-level caching         |
+| Monitoring    | Prometheus + Grafana | Metrics and dashboards      |
+| Tracing       | Jaeger               | Distributed tracing         |
 
 ---
 

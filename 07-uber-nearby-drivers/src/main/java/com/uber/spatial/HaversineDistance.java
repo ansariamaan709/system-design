@@ -15,13 +15,13 @@ package com.uber.spatial;
  * - Polar radius: 6,356.752 km
  */
 public class HaversineDistance {
-    
+
     // Earth's mean radius in meters
     public static final double EARTH_RADIUS_METERS = 6_371_000;
-    
+
     // Earth's mean radius in kilometers
     public static final double EARTH_RADIUS_KM = 6_371;
-    
+
     /**
      * Calculate the distance between two points in meters.
      *
@@ -34,7 +34,7 @@ public class HaversineDistance {
     public static double calculateMeters(double lat1, double lon1, double lat2, double lon2) {
         return calculate(lat1, lon1, lat2, lon2, EARTH_RADIUS_METERS);
     }
-    
+
     /**
      * Calculate the distance between two points in kilometers.
      *
@@ -47,7 +47,7 @@ public class HaversineDistance {
     public static double calculateKilometers(double lat1, double lon1, double lat2, double lon2) {
         return calculate(lat1, lon1, lat2, lon2, EARTH_RADIUS_KM);
     }
-    
+
     /**
      * Calculate the distance between two points with custom Earth radius.
      * 
@@ -69,17 +69,17 @@ public class HaversineDistance {
         double phi2 = Math.toRadians(lat2);
         double deltaPhi = Math.toRadians(lat2 - lat1);
         double deltaLambda = Math.toRadians(lon2 - lon1);
-        
+
         // Haversine formula
         double a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
-                   Math.cos(phi1) * Math.cos(phi2) *
-                   Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
-        
+                Math.cos(phi1) * Math.cos(phi2) *
+                        Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        
+
         return radius * c;
     }
-    
+
     /**
      * Calculate initial bearing (direction) from point 1 to point 2.
      *
@@ -93,69 +93,67 @@ public class HaversineDistance {
         double phi1 = Math.toRadians(lat1);
         double phi2 = Math.toRadians(lat2);
         double deltaLambda = Math.toRadians(lon2 - lon1);
-        
+
         double y = Math.sin(deltaLambda) * Math.cos(phi2);
         double x = Math.cos(phi1) * Math.sin(phi2) -
-                   Math.sin(phi1) * Math.cos(phi2) * Math.cos(deltaLambda);
-        
+                Math.sin(phi1) * Math.cos(phi2) * Math.cos(deltaLambda);
+
         double theta = Math.atan2(y, x);
         double bearing = Math.toDegrees(theta);
-        
+
         // Normalize to 0-360
         return (bearing + 360) % 360;
     }
-    
+
     /**
      * Calculate a destination point given a start point, bearing, and distance.
      *
-     * @param lat           Starting latitude
-     * @param lon           Starting longitude
+     * @param lat            Starting latitude
+     * @param lon            Starting longitude
      * @param bearingDegrees Bearing in degrees
      * @param distanceMeters Distance to travel in meters
      * @return Array of [latitude, longitude] of destination
      */
-    public static double[] calculateDestination(double lat, double lon, 
-                                                 double bearingDegrees, double distanceMeters) {
+    public static double[] calculateDestination(double lat, double lon,
+            double bearingDegrees, double distanceMeters) {
         double phi1 = Math.toRadians(lat);
         double lambda1 = Math.toRadians(lon);
         double bearing = Math.toRadians(bearingDegrees);
         double angularDistance = distanceMeters / EARTH_RADIUS_METERS;
-        
+
         double phi2 = Math.asin(
-            Math.sin(phi1) * Math.cos(angularDistance) +
-            Math.cos(phi1) * Math.sin(angularDistance) * Math.cos(bearing)
-        );
-        
+                Math.sin(phi1) * Math.cos(angularDistance) +
+                        Math.cos(phi1) * Math.sin(angularDistance) * Math.cos(bearing));
+
         double lambda2 = lambda1 + Math.atan2(
-            Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(phi1),
-            Math.cos(angularDistance) - Math.sin(phi1) * Math.sin(phi2)
-        );
-        
+                Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(phi1),
+                Math.cos(angularDistance) - Math.sin(phi1) * Math.sin(phi2));
+
         // Normalize longitude to -180 to 180
         lambda2 = ((lambda2 + 3 * Math.PI) % (2 * Math.PI)) - Math.PI;
-        
-        return new double[]{Math.toDegrees(phi2), Math.toDegrees(lambda2)};
+
+        return new double[] { Math.toDegrees(phi2), Math.toDegrees(lambda2) };
     }
-    
+
     /**
      * Calculate the bounding box for a point and radius.
      * Useful for database queries to narrow down candidates.
      *
-     * @param lat           Center latitude
-     * @param lon           Center longitude
-     * @param radiusMeters  Radius in meters
+     * @param lat          Center latitude
+     * @param lon          Center longitude
+     * @param radiusMeters Radius in meters
      * @return Array of [minLat, minLon, maxLat, maxLon]
      */
     public static double[] calculateBoundingBox(double lat, double lon, double radiusMeters) {
         // Angular radius in radians
         double angularRadius = radiusMeters / EARTH_RADIUS_METERS;
-        
+
         double latRad = Math.toRadians(lat);
         double lonRad = Math.toRadians(lon);
-        
+
         double minLat = latRad - angularRadius;
         double maxLat = latRad + angularRadius;
-        
+
         double deltaLon;
         if (minLat > Math.toRadians(-90) && maxLat < Math.toRadians(90)) {
             deltaLon = Math.asin(Math.sin(angularRadius) / Math.cos(latRad));
@@ -163,18 +161,18 @@ public class HaversineDistance {
             // Near poles, include all longitudes
             deltaLon = Math.PI;
         }
-        
+
         double minLon = lonRad - deltaLon;
         double maxLon = lonRad + deltaLon;
-        
-        return new double[]{
-            Math.toDegrees(minLat),
-            Math.toDegrees(minLon),
-            Math.toDegrees(maxLat),
-            Math.toDegrees(maxLon)
+
+        return new double[] {
+                Math.toDegrees(minLat),
+                Math.toDegrees(minLon),
+                Math.toDegrees(maxLat),
+                Math.toDegrees(maxLon)
         };
     }
-    
+
     /**
      * Check if a point is within a certain distance of another point.
      * More efficient than calculating exact distance when only checking threshold.
@@ -186,24 +184,24 @@ public class HaversineDistance {
      * @param radiusMeters Maximum distance
      * @return true if points are within the radius
      */
-    public static boolean isWithinRadius(double lat1, double lon1, 
-                                          double lat2, double lon2, double radiusMeters) {
+    public static boolean isWithinRadius(double lat1, double lon1,
+            double lat2, double lon2, double radiusMeters) {
         // Quick bounding box check first (much faster)
         double latDiff = Math.abs(lat1 - lat2);
         double lonDiff = Math.abs(lon1 - lon2);
-        
+
         // Approximate degrees per meter at equator (rough filter)
         double approxDegreesPerMeter = 1.0 / 111_000;
         double maxDegreeDiff = radiusMeters * approxDegreesPerMeter * 1.5; // 50% buffer
-        
+
         if (latDiff > maxDegreeDiff || lonDiff > maxDegreeDiff) {
             return false;
         }
-        
+
         // Precise check
         return calculateMeters(lat1, lon1, lat2, lon2) <= radiusMeters;
     }
-    
+
     /**
      * Calculate the midpoint between two points.
      *
@@ -218,37 +216,36 @@ public class HaversineDistance {
         double phi2 = Math.toRadians(lat2);
         double lambda1 = Math.toRadians(lon1);
         double deltaLambda = Math.toRadians(lon2 - lon1);
-        
+
         double bx = Math.cos(phi2) * Math.cos(deltaLambda);
         double by = Math.cos(phi2) * Math.sin(deltaLambda);
-        
+
         double phi3 = Math.atan2(
-            Math.sin(phi1) + Math.sin(phi2),
-            Math.sqrt((Math.cos(phi1) + bx) * (Math.cos(phi1) + bx) + by * by)
-        );
-        
+                Math.sin(phi1) + Math.sin(phi2),
+                Math.sqrt((Math.cos(phi1) + bx) * (Math.cos(phi1) + bx) + by * by));
+
         double lambda3 = lambda1 + Math.atan2(by, Math.cos(phi1) + bx);
-        
-        return new double[]{Math.toDegrees(phi3), Math.toDegrees(lambda3)};
+
+        return new double[] { Math.toDegrees(phi3), Math.toDegrees(lambda3) };
     }
-    
+
     /**
      * Estimate ETA in seconds based on distance and average speed.
      *
-     * @param lat1              Start latitude
-     * @param lon1              Start longitude
-     * @param lat2              End latitude
-     * @param lon2              End longitude
-     * @param averageSpeedKmh   Average speed in km/h
+     * @param lat1            Start latitude
+     * @param lon1            Start longitude
+     * @param lat2            End latitude
+     * @param lon2            End longitude
+     * @param averageSpeedKmh Average speed in km/h
      * @return Estimated time in seconds
      */
-    public static int estimateEtaSeconds(double lat1, double lon1, 
-                                          double lat2, double lon2, double averageSpeedKmh) {
+    public static int estimateEtaSeconds(double lat1, double lon1,
+            double lat2, double lon2, double averageSpeedKmh) {
         double distanceKm = calculateKilometers(lat1, lon1, lat2, lon2);
         double hours = distanceKm / averageSpeedKmh;
         return (int) Math.ceil(hours * 3600);
     }
-    
+
     /**
      * Estimate ETA with default urban speed (25 km/h average).
      */

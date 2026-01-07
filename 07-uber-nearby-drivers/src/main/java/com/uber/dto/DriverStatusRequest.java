@@ -12,7 +12,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DriverStatusRequest {
-    
+
     @NotNull(message = "Status is required")
     private DriverStatus status;
 }

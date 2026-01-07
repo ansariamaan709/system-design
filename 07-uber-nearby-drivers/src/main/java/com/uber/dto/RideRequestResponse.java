@@ -13,12 +13,12 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RideRequestResponse {
-    
+
     private UUID requestId;
     private RideStatus status;
-    private Integer estimatedWait;  // Seconds
+    private Integer estimatedWait; // Seconds
     private String message;
-    
+
     public static RideRequestResponse created(UUID requestId, int estimatedWait) {
         return RideRequestResponse.builder()
                 .requestId(requestId)
@@ -27,7 +27,7 @@ public class RideRequestResponse {
                 .message("Searching for nearby drivers")
                 .build();
     }
-    
+
     public static RideRequestResponse noDrivers(UUID requestId) {
         return RideRequestResponse.builder()
                 .requestId(requestId)

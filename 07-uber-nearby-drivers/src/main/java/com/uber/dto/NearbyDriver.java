@@ -14,25 +14,25 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class NearbyDriver {
-    
+
     private UUID driverId;
     private Double latitude;
     private Double longitude;
-    private Double distance;     // Distance in meters
-    private Integer eta;          // ETA in seconds
-    private Integer heading;      // Direction (0-359)
+    private Double distance; // Distance in meters
+    private Integer eta; // ETA in seconds
+    private Integer heading; // Direction (0-359)
     private VehicleType vehicleType;
     private BigDecimal rating;
-    
+
     /**
      * Create a NearbyDriver with calculated ETA.
      */
-    public static NearbyDriver from(UUID driverId, double lat, double lng, 
-                                     double distance, VehicleType vehicleType, 
-                                     BigDecimal rating, int heading) {
+    public static NearbyDriver from(UUID driverId, double lat, double lng,
+            double distance, VehicleType vehicleType,
+            BigDecimal rating, int heading) {
         // Estimate ETA based on average urban speed (25 km/h = ~7 m/s)
         int eta = (int) Math.ceil(distance / 7.0);
-        
+
         return NearbyDriver.builder()
                 .driverId(driverId)
                 .latitude(lat)

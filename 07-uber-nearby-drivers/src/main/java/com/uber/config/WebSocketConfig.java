@@ -16,16 +16,16 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 @Configuration
 @EnableWebSocket
 public class WebSocketConfig implements WebSocketConfigurer {
-    
+
     private final LocationWebSocketHandler locationWebSocketHandler;
-    
+
     public WebSocketConfig(LocationWebSocketHandler locationWebSocketHandler) {
         this.locationWebSocketHandler = locationWebSocketHandler;
     }
-    
+
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(locationWebSocketHandler, "/ws/v1/location")
-                .setAllowedOrigins("*");  // Configure properly in production
+                .setAllowedOrigins("*"); // Configure properly in production
     }
 }

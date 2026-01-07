@@ -25,6 +25,7 @@ This project implements a real-time geospatial system for finding nearby drivers
 ```
 
 This starts:
+
 - **PostgreSQL 15** with PostGIS (port 5432)
 - **Redis 7** (port 6379)
 - **Apache Kafka** (port 9092)
@@ -40,6 +41,7 @@ This starts:
 ```
 
 Or manually:
+
 ```powershell
 .\mvnw spring-boot:run -Dspring-boot.run.profiles=local
 ```
@@ -47,6 +49,7 @@ Or manually:
 ### 3. Verify Installation
 
 Application health check:
+
 ```powershell
 curl http://localhost:8080/actuator/health
 ```
@@ -132,21 +135,22 @@ Invoke-RestMethod -Method GET `
 
 ## Service URLs
 
-| Service | URL | Credentials |
-|---------|-----|-------------|
-| Application | http://localhost:8080 | - |
-| Swagger UI | http://localhost:8080/swagger-ui.html | - |
-| Actuator | http://localhost:8080/actuator | - |
-| Kafka UI | http://localhost:8081 | - |
-| Redis Commander | http://localhost:8082 | - |
-| Prometheus | http://localhost:9090 | - |
-| Grafana | http://localhost:3000 | admin/admin |
+| Service         | URL                                   | Credentials |
+| --------------- | ------------------------------------- | ----------- |
+| Application     | http://localhost:8080                 | -           |
+| Swagger UI      | http://localhost:8080/swagger-ui.html | -           |
+| Actuator        | http://localhost:8080/actuator        | -           |
+| Kafka UI        | http://localhost:8081                 | -           |
+| Redis Commander | http://localhost:8082                 | -           |
+| Prometheus      | http://localhost:9090                 | -           |
+| Grafana         | http://localhost:3000                 | admin/admin |
 
 ---
 
 ## Redis Data Model
 
 ### GEO Index (for GEORADIUS queries)
+
 ```
 Key: drivers:geo:{cityId}
 Type: Sorted Set with GEO encoding
@@ -154,6 +158,7 @@ Members: driver UUIDs with lat/lng
 ```
 
 ### Driver Location Details
+
 ```
 Key: driver:location:{driverId}
 Type: Hash
@@ -162,6 +167,7 @@ TTL: 30 seconds
 ```
 
 ### Driver Status
+
 ```
 Key: driver:status:{driverId}
 Type: String
@@ -172,12 +178,12 @@ Value: AVAILABLE | BUSY | OFFLINE
 
 ## Kafka Topics
 
-| Topic | Partitions | Purpose |
-|-------|------------|---------|
-| location.updates | 32 | Driver location events |
-| ride.requests | 16 | New ride requests |
-| ride.matches | 16 | Successful matches |
-| driver.status | 8 | Status changes |
+| Topic            | Partitions | Purpose                |
+| ---------------- | ---------- | ---------------------- |
+| location.updates | 32         | Driver location events |
+| ride.requests    | 16         | New ride requests      |
+| ride.matches     | 16         | Successful matches     |
+| driver.status    | 8          | Status changes         |
 
 ---
 
@@ -207,6 +213,7 @@ Rider App → API Gateway → Nearby Service → Redis GEO
 ## Troubleshooting
 
 ### Redis Connection Failed
+
 ```powershell
 # Check if Redis is running
 docker ps | findstr redis
@@ -216,6 +223,7 @@ docker-compose restart redis
 ```
 
 ### Kafka Not Starting
+
 ```powershell
 # Check Zookeeper logs
 docker logs uber-zookeeper
@@ -225,6 +233,7 @@ docker logs uber-kafka
 ```
 
 ### Database Connection Issues
+
 ```powershell
 # Check PostgreSQL
 docker exec uber-postgres pg_isready -U postgres
@@ -238,14 +247,17 @@ docker exec -it uber-postgres psql -U postgres -d uber_nearby
 ## Performance Tuning
 
 ### Redis
+
 - Enable cluster mode for >500K concurrent drivers
 - Tune maxmemory-policy for your workload
 
 ### Kafka
+
 - Increase partitions for higher throughput
 - Enable compression (lz4) for location updates
 
 ### Application
+
 - Tune thread pool sizes based on load
 - Enable async processing for non-critical paths
 
@@ -258,6 +270,7 @@ docker exec -it uber-postgres psql -U postgres -d uber_nearby
 ```
 
 To remove all data:
+
 ```powershell
 docker-compose down -v
 ```

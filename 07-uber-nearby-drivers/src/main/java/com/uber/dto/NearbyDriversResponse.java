@@ -12,12 +12,12 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class NearbyDriversResponse {
-    
+
     private List<NearbyDriver> drivers;
     private int searchRadiusUsed;
     private int totalFound;
     private long searchTimeMs;
-    
+
     public static NearbyDriversResponse empty(int radiusUsed, long timeMs) {
         return NearbyDriversResponse.builder()
                 .drivers(List.of())
@@ -26,7 +26,7 @@ public class NearbyDriversResponse {
                 .searchTimeMs(timeMs)
                 .build();
     }
-    
+
     public static NearbyDriversResponse of(List<NearbyDriver> drivers, int radiusUsed, long timeMs) {
         return NearbyDriversResponse.builder()
                 .drivers(drivers)

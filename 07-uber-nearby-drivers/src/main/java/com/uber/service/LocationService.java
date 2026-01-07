@@ -35,39 +35,39 @@ import static com.uber.config.KafkaConfig.TOPIC_LOCATION_UPDATES;
  * Cold path: PostgreSQL for historical data (via Kafka)
  * 
  * Redis keys:
- * - drivers:geo:{cityId}  -> GEOADD for spatial queries
- * - driver:location:{id}  -> HSET for full location data
- * - driver:status:{id}    -> String for quick status check
+ * - drivers:geo:{cityId} -> GEOADD for spatial queries
+ * - driver:location:{id} -> HSET for full location data
+ * - driver:status:{id} -> String for quick status check
  */
 @Service
 @Slf4j
 public class LocationService {
-    
+
     private static final String GEO_KEY_PREFIX = "drivers:geo:";
     private static final String LOCATION_KEY_PREFIX = "driver:location:";
     private static final String STATUS_KEY_PREFIX = "driver:status:";
-    
+
     private final RedisTemplate<String, Object> redisTemplate;
     private final DriverLocationRepository locationRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final MeterRegistry meterRegistry;
-    
+
     private final Counter locationUpdatesCounter;
     private final Counter locationUpdateErrorsCounter;
     private final Timer locationUpdateTimer;
-    
+
     @Value("${uber.location.stale-threshold-ms:30000}")
     private long staleThresholdMs;
-    
+
     @Value("${uber.location.max-speed-kmh:200}")
     private double maxSpeedKmh;
-    
+
     @Value("${uber.location.geohash-precision:7}")
     private int geohashPrecision;
-    
+
     @Value("${uber.location.h3-resolution:9}")
     private int h3Resolution;
-    
+
     public LocationService(
             RedisTemplate<String, Object> redisTemplate,
             DriverLocationRepository locationRepository,
@@ -77,28 +77,28 @@ public class LocationService {
         this.locationRepository = locationRepository;
         this.kafkaTemplate = kafkaTemplate;
         this.meterRegistry = meterRegistry;
-        
+
         // Initialize metrics
         this.locationUpdatesCounter = Counter.builder("location.updates.total")
                 .description("Total location updates processed")
                 .register(meterRegistry);
-        
+
         this.locationUpdateErrorsCounter = Counter.builder("location.updates.errors")
                 .description("Location update errors")
                 .register(meterRegistry);
-        
+
         this.locationUpdateTimer = Timer.builder("location.updates.latency")
                 .description("Location update processing time")
                 .register(meterRegistry);
     }
-    
+
     /**
      * Update a single driver's location.
      * This is the primary hot path for location ingestion.
      */
     public void updateLocation(UUID driverId, String cityId, LocationUpdateRequest request) {
         Timer.Sample sample = Timer.start(meterRegistry);
-        
+
         try {
             // Validate timestamp (reject stale updates)
             if (request.getTimestamp() != null) {
@@ -108,11 +108,11 @@ public class LocationService {
                     return;
                 }
             }
-            
+
             // Calculate spatial indexes
             String geohash = GeoHash.encode(request.getLatitude(), request.getLongitude(), geohashPrecision);
             long h3Index = H3Index.latLngToCell(request.getLatitude(), request.getLongitude(), h3Resolution);
-            
+
             // Build location data
             Map<String, Object> locationData = new HashMap<>();
             locationData.put("driverId", driverId.toString());
@@ -124,26 +124,26 @@ public class LocationService {
             locationData.put("speed", request.getSpeed());
             locationData.put("accuracy", request.getAccuracy());
             locationData.put("timestamp", System.currentTimeMillis());
-            
+
             // Update Redis GEO index for spatial queries
             String geoKey = GEO_KEY_PREFIX + cityId;
-            redisTemplate.opsForGeo().add(geoKey, 
-                    new Point(request.getLongitude(), request.getLatitude()), 
+            redisTemplate.opsForGeo().add(geoKey,
+                    new Point(request.getLongitude(), request.getLatitude()),
                     driverId.toString());
-            
+
             // Set TTL on geo key entries (30 seconds)
             redisTemplate.expire(geoKey, Duration.ofSeconds(30));
-            
+
             // Store full location data
             String locationKey = LOCATION_KEY_PREFIX + driverId;
             redisTemplate.opsForHash().putAll(locationKey, locationData);
             redisTemplate.expire(locationKey, Duration.ofSeconds(30));
-            
+
             locationUpdatesCounter.increment();
-            
+
             // Async: Publish to Kafka for persistence and analytics
             publishLocationUpdate(driverId, cityId, locationData);
-            
+
         } catch (Exception e) {
             locationUpdateErrorsCounter.increment();
             log.error("Failed to update location for driver {}: {}", driverId, e.getMessage());
@@ -152,7 +152,7 @@ public class LocationService {
             sample.stop(locationUpdateTimer);
         }
     }
-    
+
     /**
      * Batch update multiple driver locations.
      * Used for high-throughput ingestion scenarios.
@@ -160,7 +160,7 @@ public class LocationService {
     public BatchLocationUpdateResponse batchUpdateLocations(String cityId, BatchLocationUpdateRequest request) {
         int processed = 0;
         int failed = 0;
-        
+
         for (BatchLocationUpdateRequest.DriverLocationUpdate update : request.getLocations()) {
             try {
                 LocationUpdateRequest locationRequest = LocationUpdateRequest.builder()
@@ -171,51 +171,51 @@ public class LocationService {
                         .accuracy(update.getAccuracy())
                         .timestamp(update.getTs())
                         .build();
-                
+
                 updateLocation(update.getDriverId(), cityId, locationRequest);
                 processed++;
-                
+
             } catch (Exception e) {
                 failed++;
-                log.warn("Failed to update location for driver {} in batch: {}", 
+                log.warn("Failed to update location for driver {} in batch: {}",
                         update.getDriverId(), e.getMessage());
             }
         }
-        
+
         if (failed == 0) {
             return BatchLocationUpdateResponse.success(processed);
         } else {
             return BatchLocationUpdateResponse.partial(processed, failed);
         }
     }
-    
+
     /**
      * Update driver status (AVAILABLE, BUSY, OFFLINE).
      */
     public void updateDriverStatus(UUID driverId, DriverStatus status) {
         String statusKey = STATUS_KEY_PREFIX + driverId;
         redisTemplate.opsForValue().set(statusKey, status.name());
-        
+
         if (status == DriverStatus.OFFLINE) {
             // Remove from geo index when offline
             // Note: In production, we'd need to know the city to remove from correct key
             redisTemplate.delete(LOCATION_KEY_PREFIX + driverId);
         }
-        
+
         log.debug("Updated driver {} status to {}", driverId, status);
     }
-    
+
     /**
      * Get current location of a driver from Redis.
      */
     public DriverLocation getDriverLocation(UUID driverId) {
         String locationKey = LOCATION_KEY_PREFIX + driverId;
         Map<Object, Object> data = redisTemplate.opsForHash().entries(locationKey);
-        
+
         if (data.isEmpty()) {
             return null;
         }
-        
+
         return DriverLocation.builder()
                 .driverId(driverId)
                 .latitude(Double.parseDouble(data.get("latitude").toString()))
@@ -228,21 +228,21 @@ public class LocationService {
                 .updatedAt(Instant.ofEpochMilli(Long.parseLong(data.get("timestamp").toString())))
                 .build();
     }
-    
+
     /**
      * Get driver status from Redis.
      */
     public DriverStatus getDriverStatus(UUID driverId) {
         String statusKey = STATUS_KEY_PREFIX + driverId;
         Object status = redisTemplate.opsForValue().get(statusKey);
-        
+
         if (status == null) {
             return DriverStatus.OFFLINE;
         }
-        
+
         return DriverStatus.valueOf(status.toString());
     }
-    
+
     /**
      * Publish location update to Kafka for async processing.
      */
@@ -251,19 +251,19 @@ public class LocationService {
         try {
             // Use geohash prefix as partition key for locality
             String partitionKey = locationData.get("geohash").toString().substring(0, 4);
-            
+
             Map<String, Object> event = new HashMap<>(locationData);
             event.put("cityId", cityId);
             event.put("eventType", "LOCATION_UPDATE");
-            
+
             kafkaTemplate.send(TOPIC_LOCATION_UPDATES, partitionKey, event);
-            
+
         } catch (Exception e) {
             log.warn("Failed to publish location update to Kafka: {}", e.getMessage());
             // Don't fail the main operation for Kafka issues
         }
     }
-    
+
     /**
      * Persist location to PostgreSQL (called by Kafka consumer).
      */

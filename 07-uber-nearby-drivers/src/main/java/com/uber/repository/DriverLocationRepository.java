@@ -19,27 +19,27 @@ import java.util.UUID;
  */
 @Repository
 public interface DriverLocationRepository extends JpaRepository<DriverLocation, UUID> {
-    
+
     List<DriverLocation> findByStatus(DriverStatus status);
-    
+
     List<DriverLocation> findByH3Index(Long h3Index);
-    
+
     List<DriverLocation> findByH3IndexIn(List<Long> h3Indexes);
-    
+
     @Query("SELECT dl FROM DriverLocation dl WHERE dl.geohash LIKE :prefix%")
     List<DriverLocation> findByGeohashPrefix(@Param("prefix") String prefix);
-    
+
     @Query("SELECT dl FROM DriverLocation dl WHERE dl.status = 'AVAILABLE' AND dl.h3Index IN :h3Indexes")
     List<DriverLocation> findAvailableInH3Cells(@Param("h3Indexes") List<Long> h3Indexes);
-    
+
     @Modifying
     @Query("DELETE FROM DriverLocation dl WHERE dl.updatedAt < :threshold")
     int deleteStaleLocations(@Param("threshold") Instant threshold);
-    
+
     @Modifying
     @Query("UPDATE DriverLocation dl SET dl.status = :status WHERE dl.driverId = :driverId")
     int updateStatus(@Param("driverId") UUID driverId, @Param("status") DriverStatus status);
-    
+
     // Native query using PostGIS for spatial operations
     @Query(value = """
             SELECT dl.* FROM driver_locations dl

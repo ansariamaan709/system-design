@@ -20,19 +20,19 @@ import java.util.concurrent.TimeUnit;
 @Configuration
 @EnableCaching
 public class CacheConfig {
-    
+
     @Value("${cache.driver-metadata.ttl-seconds:60}")
     private int driverMetadataTtl;
-    
+
     @Value("${cache.driver-metadata.max-size:100000}")
     private int driverMetadataMaxSize;
-    
+
     @Value("${cache.city-config.ttl-seconds:300}")
     private int cityConfigTtl;
-    
+
     @Value("${cache.city-config.max-size:1000}")
     private int cityConfigMaxSize;
-    
+
     @Bean
     public CacheManager cacheManager() {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager();
@@ -42,7 +42,7 @@ public class CacheConfig {
                 .recordStats());
         return cacheManager;
     }
-    
+
     @Bean
     public Caffeine<Object, Object> driverMetadataCache() {
         return Caffeine.newBuilder()
@@ -50,7 +50,7 @@ public class CacheConfig {
                 .maximumSize(driverMetadataMaxSize)
                 .recordStats();
     }
-    
+
     @Bean
     public Caffeine<Object, Object> cityConfigCache() {
         return Caffeine.newBuilder()
